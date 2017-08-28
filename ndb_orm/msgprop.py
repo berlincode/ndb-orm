@@ -136,15 +136,40 @@ The EnumProperty supports the following standard options:
 """
 
 from protorpc import messages
-# from protorpc import remote
 
 from . import model
 from . import utils
 
-
-# TODO: Use ProtoRPC's global Protocols instance once it is in the SDK.
-# _protocols_registry = remote.Protocols.new_default()
 _default_protocol = 'protobuf'
+
+class ProtocolProtobuf(object):
+
+  @staticmethod
+  def encode_message(msg):
+    return msg.SerializeToString()
+
+  @staticmethod
+  def decode_message(msg_type, blob):
+    recovered = msg_type()
+    recovered.ParseFromString(blob)
+
+    return recovered
+
+class Protocols(object):
+  def __init__(self):
+    self.__by_name = {'protobuf': ProtocolProtobuf}
+
+  def lookup_by_name(self, name):
+    return self.__by_name[name.lower()]
+
+  def add_protocol(self, protocol, name):
+    self.__by_name[name] = protocol
+
+  @property
+  def names(self):
+    return tuple(sorted(self.__by_name))
+
+_protocols_registry = Protocols()
 
 
 class EnumProperty(model.IntegerProperty):
@@ -326,7 +351,7 @@ class MessageProperty(model.StructuredProperty):
     """Constructor.
 
     Args:
-      message_tyoe: A subclass of protorpc.messages.Message.
+      message_type: A subclass of protorpc.messages.Message.
       name: Optional datastore name (defaults to the property name).
       indexed_fields: Optional list of dotted and undotted field names.
       protocol: Optional protocol name default 'protobuf'.
@@ -334,9 +359,10 @@ class MessageProperty(model.StructuredProperty):
     Additional keywords arguments specify the same options as
     supported by StructuredProperty, except 'indexed'.
     """
-    if not (isinstance(message_type, type) and
-            issubclass(message_type, messages.Message)):
-      raise TypeError('MessageProperty argument must be a Message subclass')
+    if not isinstance(message_type, type):
+      raise TypeError('Wrong class')
+#     if not issubclass(message_type, messages.Message):
+#       raise TypeError('MessageProperty argument must be a Message subclass')
     self._message_type = message_type
     if indexed_fields is not None:
       # TODO: Check they are all strings naming fields.

@@ -16,11 +16,18 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""NDB -- A new datastore API for the Google App Engine Python runtime."""
+"""NDB -- A new datastore API for the Google App Engine Python runtime.
 
-__version__ = '0.1.0' # originally based on ndb '1.0.10'
+This is a special patched version of ndb named ndb-orm.
+
+Public repository:
+https://github.com/berlincode/ndb-orm
+"""
+
+__version__ = '0.2.0' # originally based on ndb '1.0.10'
 
 from google.cloud import datastore
+from google.cloud.datastore.key import Key
 
 # errors (originally from google.appengine.api.datastore_errors)
 from . import datastore_errors
@@ -53,27 +60,59 @@ from . import msgprop
 
 DEFAULT_MODEL = None
 
-def model_from_pb(pb):
-    if not pb.HasField('key'):  # Message field (Key)
-        return None
+# for monkey patching
+real_entity_from_protobuf = datastore.helpers.entity_from_protobuf
+real_entity_to_protobuf = datastore.helpers.entity_to_protobuf
 
-    key = datastore.helpers.key_from_protobuf(pb.key)
-    try:
-        modelclass = Model._lookup_model(key.kind, DEFAULT_MODEL)
-    except KindError:
-        return None
-    key = None
-    entity = modelclass._from_pb(pb, key=key, set_key=False)
-    return entity
+def model_from_protobuf(pb):
+  if not pb.HasField('key'):  # Message field (Key)
+    return None
 
-def model_to_pb(client, entity_of_ndb_model):
-    entity_of_ndb_model._prepare_for_put()
-    pb = entity_of_ndb_model._to_pb()
+  key = datastore.helpers.key_from_protobuf(pb.key)
+  try:
+    modelclass = Model._lookup_model(key.kind, DEFAULT_MODEL)
+  except KindError:
+    return None
+  entity = modelclass._from_pb(pb, key=key, set_key=False)
+  #entity = modelclass._from_pb(pb, key=key, set_key=True)
+  entity.key = key
+  return entity
 
-    if entity_of_ndb_model._key is None:
-        entity_of_ndb_model._key = client.key(entity_of_ndb_model.__class__.__name__)
+def model_to_protobuf(entity_of_ndb_model, project, namespace=None):
+  entity_of_ndb_model._prepare_for_put()
+  pb = entity_of_ndb_model._to_pb()
 
-    entity_of_ndb_model._pre_put_hook()
-    key_pb = entity_of_ndb_model._key.to_protobuf()
-    pb.key.CopyFrom(key_pb)
-    return pb
+  if entity_of_ndb_model._key is None:
+    entity_of_ndb_model._key = Key(
+      entity_of_ndb_model.__class__.__name__, # path
+      project=project,
+      namespace=namespace
+    )
+
+  entity_of_ndb_model._pre_put_hook()
+  key_pb = entity_of_ndb_model._key.to_protobuf()
+  pb.key.CopyFrom(key_pb)
+  return pb
+
+def enable_use_with_gcd(project=None, namespace=None):
+  def new_entity_from_protobuf(entity_protobuf):
+    model = model_from_protobuf(entity_protobuf)
+    if model:
+      return model
+
+    return real_entity_from_protobuf(entity_protobuf)
+
+  def new_entity_to_protobuf(entity):
+    if isinstance(entity, Model):
+      return model_to_protobuf(entity, project, namespace)
+
+    return real_entity_to_protobuf(entity)
+
+  if project:
+    # enable via monkey patching
+    datastore.helpers.entity_from_protobuf = new_entity_from_protobuf
+    datastore.helpers.entity_to_protobuf = new_entity_to_protobuf
+  else:
+    # disable: revert to orginal functions
+    datastore.helpers.entity_from_protobuf = real_entity_from_protobuf
+    datastore.helpers.entity_to_protobuf = real_entity_to_protobuf

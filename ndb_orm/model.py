@@ -298,6 +298,8 @@ Property subclass is in the docstring for the Property class.
 
 __author__ = 'guido@google.com (Guido van Rossum)'
 
+ENABLE_PICKLE_LOADS = False # the save default
+
 import collections
 import copy
 import pickle as pickle
@@ -307,10 +309,12 @@ import zlib
 import six
 
 from google.cloud.proto.datastore.v1 import entity_pb2
+from google.cloud._helpers import _datetime_to_pb_timestamp
+from google.cloud._helpers import _pb_timestamp_to_datetime
+
 from . import datastore_errors
 from . import datastore_types
 from . import utils
-
 # defines copied form google/appengine/datastore/entity_pb.py and prefixed with 'PROPERTY_'
 PROPERTY_NO_MEANING   =    0
 PROPERTY_BLOB         =   14
@@ -1397,13 +1401,15 @@ class Property(ModelAttribute):
     if val is not None:
       val = _BaseValue(val)
     if self._repeated:
-      if self._has_value(entity):
-        value = self._retrieve_value(entity)
-        assert isinstance(value, list), repr(value)
-        value.append(val)
+#       if self._has_value(entity):
+      if p.array_value.values:
+#         value = self._retrieve_value(entity)
+#         assert isinstance(value, list), repr(value)
+#         value.append(val)
+        value = [_BaseValue(self._db_get_value(subprop)) for subprop in p.array_value.values]
       else:
-        value = [self._db_get_value(subprop) for subprop in p.array_value.values]
-#         value = [val]
+        # We promote single values to lists if we are a list property
+        value = [val]
     else:
       value = val
     self._store_value(entity, value)
@@ -1520,7 +1526,8 @@ class BooleanProperty(Property):
       return None
     # The booleanvalue field is an int32, so booleanvalue() returns an
     # int, hence the conversion.
-    return int(v.boolean_value)
+#     return int(v.boolean_value)
+    return v.boolean_value
 
 
 class IntegerProperty(Property):
@@ -1566,10 +1573,6 @@ class FloatProperty(Property):
     if v.WhichOneof('value_type') != 'double_value':
       return None
     return v.double_value
-
-
-# A custom 'meaning' for compressed properties.
-_MEANING_URI_COMPRESSED = 'ZLIB'
 
 
 class _CompressedValue(_NotEqualMixin):
@@ -1667,14 +1670,18 @@ class BlobProperty(Property):
       p.meaning = PROPERTY_BLOB
 
   def _db_get_value(self, v):
-    if v.WhichOneof('value_type') != 'blob_value':
+    value_type = v.WhichOneof('value_type')
+    if value_type == 'blob_value':
+      value = v.blob_value
+      if self._compressed:
+        value = _CompressedValue(value)
+    elif value_type == 'string_value':
+      value = v.string_value
+    elif value_type == 'entity_value':
+      value = v.entity_value
+    else:
       return None
-    value = v.blob_value
 
-# TODO 
-#     if p.meaning_uri().decode() == _MEANING_URI_COMPRESSED:
-    if self._compressed:
-      value = _CompressedValue(value)
     return value
 
 
@@ -1705,6 +1712,14 @@ class TextProperty(BlobProperty):
         # properties.
         # TODO: Eventually we should close this hole.
         pass
+
+  def _db_set_value(self, v, value):
+    if isinstance(value, _CompressedValue):
+      self._db_set_compressed_meaning(v)
+      v.blob_value = value.z_val
+    else:
+      self._db_set_uncompressed_meaning(v)
+      v.string_value = value
 
   def _db_set_uncompressed_meaning(self, p):
     if not self._indexed:
@@ -1773,7 +1788,11 @@ class PickleProperty(BlobProperty):
     return pickle.dumps(value, pickle.HIGHEST_PROTOCOL)
 
   def _from_base_type(self, value):
-    return pickle.loads(value)
+    if ENABLE_PICKLE_LOADS:
+      # this might be dangeous between different python versions
+      # and is thus disabled by default
+      return pickle.loads(value)
+    return None
 
 
 class JsonProperty(BlobProperty):
@@ -2032,20 +2051,28 @@ class DateTimeProperty(Property):
     if not isinstance(value, datetime.datetime):
       raise TypeError('DatetimeProperty %s can only be set to datetime values; '
                       'received %r' % (self._name, value))
-    if value.tzinfo is not None:
-      raise NotImplementedError('DatetimeProperty %s can only support UTC. '
-                                'Please derive a new Property to support '
-                                'alternative timezones.' % self._name)
-    dt = value - _EPOCH
-    ival = dt.microseconds + 1000000 * (dt.seconds + 24 * 3600 * dt.days)
-    v.integer_value = ival # scalar, just assign
-    v.meaning = PROPERTY_GD_WHEN
+#     if value.tzinfo is not None:
+#       raise NotImplementedError('DatetimeProperty %s can only support UTC. '
+#                                 'Please derive a new Property to support '
+#                                 'alternative timezones.' % self._name)
+    
+    v.timestamp_value.CopyFrom(_datetime_to_pb_timestamp(value))
+
+    # TODO old style ndb write - not possible anymore !
+#     dt = value - _EPOCH
+#     ival = dt.microseconds + 1000000 * (dt.seconds + 24 * 3600 * dt.days)
+#     v.integer_value = ival # scalar, just assign
+#     v.meaning = PROPERTY_GD_WHEN
 
   def _db_get_value(self, v):
-    if v.WhichOneof('value_type') != 'integer_value':
-      return None
-    ival = v.integer_value
-    return _EPOCH + datetime.timedelta(microseconds=ival)
+    value_type = v.WhichOneof('value_type')
+    if value_type == 'integer_value':
+      ival = v.integer_value
+      return _EPOCH + datetime.timedelta(microseconds=ival)
+    elif value_type == 'timestamp_value':
+      return _pb_timestamp_to_datetime(v.timestamp_value)
+
+    return None
 
 
 def _date_to_datetime(value):
@@ -2359,7 +2386,7 @@ class StructuredProperty(_StructuredGetForDictMixin):
       # need this passed in from _from_pb(), which would mean a
       # signature change for _deserialize(), which might break valid
       # end-user code that overrides it.
-      compressed = p.meaning_uri().decode() == _MEANING_URI_COMPRESSED
+      compressed = False
       prop = GenericProperty(next, compressed=compressed)
       prop._code_name = next
       prop_is_fake = True
@@ -2481,9 +2508,14 @@ class LocalStructuredProperty(_StructuredGetForDictMixin, BlobProperty):
 
   def _from_base_type(self, value):
     if not isinstance(value, self._modelclass):
-      pb = entity_pb2.Entity()
-#       pb.MergePartialFromString(value)
-      pb.MergeFromString(value)
+      if isinstance(value, entity_pb2.Entity):
+        pb = value
+      else:
+        pb = entity_pb2.Entity()
+  #       pb.MergePartialFromString(value) # this was the original call
+  #       pb.MergeFromString(value)
+        pb.ParseFromString(value)
+
       if not self._keep_keys:
 #         pb.clear_key()
         pb.ClearField('key')
@@ -2555,8 +2587,9 @@ class GenericProperty(Property):
     # what union member is present.  datastore_types.FromPropertyPb(),
     # the undisputed authority, has the same series of if-elif blocks.
     # (We don't even want to think about multiple members... :-)
-    if v.has_stringvalue():
-      sval = v.stringvalue()
+    value_type = v.WhichOneof('value_type')
+    if value_type == 'string_value':
+      sval = v.string_value
       meaning = v.meaning
       if meaning == PROPERTY_BLOBKEY:
         sval = BlobKey(sval)
@@ -2568,7 +2601,8 @@ class GenericProperty(Property):
         # NOTE: This is only used for uncompressed LocalStructuredProperties.
         pb = entity_pb2.Entity()
 #         pb.MergePartialFromString(sval)
-        pb.MergeFromString(sval)
+#         pb.MergeFromString(sval)
+        pb.ParseFromString(sval)
         modelclass = Expando
         if pb.key().path().element_size():
           kind = pb.key().path().element(-1).type()
@@ -2584,28 +2618,29 @@ class GenericProperty(Property):
           except UnicodeDecodeError:
             pass
       return sval
-    elif v.has_int64value():
-      ival = v.int64value()
-      if p.meaning == PROPERTY_GD_WHEN:
+    elif value_type == 'integer_value':
+      ival = v.integer_value
+      if v.meaning == PROPERTY_GD_WHEN:
         return _EPOCH + datetime.timedelta(microseconds=ival)
       return ival
-    elif v.has_booleanvalue():
+    elif value_type == 'boolean_value':
       # The booleanvalue field is an int32, so booleanvalue() returns
       # an int, hence the conversion.
-      return bool(v.booleanvalue())
-    elif v.has_doublevalue():
-      return v.doublevalue()
-    elif v.has_referencevalue():
-      rv = v.referencevalue()
-      app = rv.app()
-      namespace = rv.name_space()
-      pairs = [(elem.type(), elem.id() or elem.name())
-               for elem in rv.pathelement_list()]
-      return Key(pairs=pairs, app=app, namespace=namespace)
-    elif v.has_pointvalue():
-      pv = v.pointvalue()
-      return GeoPt(pv.x(), pv.y())
-    elif v.has_uservalue():
+      return bool(v.boolean_value)
+    elif value_type == 'double_value':
+      return v.double_value
+    # TODO
+#     elif v.has_referencevalue():
+#       rv = v.referencevalue()
+#       app = rv.app()
+#       namespace = rv.name_space()
+#       pairs = [(elem.type(), elem.id() or elem.name())
+#                for elem in rv.pathelement_list()]
+#       return Key(pairs=pairs, app=app, namespace=namespace)
+    elif value_type == 'geo_point_value':
+      pv = v.geo_point_value
+      return GeoPt(pv.longitude, pv.latitude)
+    elif value_type == 'user_value':
       return _unpack_user(v)
     else:
       # A missing value implies null.
@@ -3072,7 +3107,9 @@ class Model(_NotEqualMixin, metaclass=MetaModel):
       pass
 
     for unused_name, prop in sorted(self._properties.items()):
-      prop._serialize(self, pb, projection=self._projection)
+      # only add properties with do have a value
+      if prop._has_value(self):
+        prop._serialize(self, pb, projection=self._projection)
 
     return pb
 
@@ -3154,7 +3191,7 @@ class Model(_NotEqualMixin, metaclass=MetaModel):
     next = parts[depth]
     prop = self._properties.get(next)
     if prop is None:
-      prop = self._fake_property(p, next, indexed)
+      prop = self._fake_property(name, p, next, indexed)
     return prop
 
   def _clone_properties(self):
@@ -3163,17 +3200,17 @@ class Model(_NotEqualMixin, metaclass=MetaModel):
     if self._properties is cls._properties:
       self._properties = dict(cls._properties)
 
-  def _fake_property(self, p, next, indexed=True):
+  def _fake_property(self, name, p, next, indexed=True):
     """Internal helper to create a fake Property."""
     self._clone_properties()
-    name = p.name().decode()
     if name != next and not name.endswith('.' + next):
       prop = StructuredProperty(Expando, next)
       prop._store_value(self, _BaseValue(Expando()))
     else:
-      compressed = p.meaning_uri().decode() == _MEANING_URI_COMPRESSED
+      compressed = False
       prop = GenericProperty(next,
-                             repeated=p.multiple(),
+                             #repeated=p.multiple(),
+                             repeated=bool(p.array_value.values),
                              indexed=indexed,
                              compressed=compressed)
     prop._code_name = next
