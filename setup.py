@@ -20,16 +20,16 @@ HISTORY = open('CHANGES.txt').read().replace('.. :changelog:', '')
 
 setup(
     name='ndb-orm',
-    version='0.2.0',
+    version='0.2.1',
     description="google datatstore ndb orm which might be used with google-cloud-datastore (python3 compatible)",
     long_description=README + '\n\n' + HISTORY,
     author='Ulf Bartel',
     author_email='elastic.code@gmail.com',
     url='https://github.com/berlincode/ndb-orm',
     packages=[
-        'ndb-orm',
+        'ndb_orm',
     ],
-    package_dir={'ndb-orm': 'ndb_orm'},
+    package_dir={'ndb_orm': 'ndb_orm'},
     include_package_data=True,
     install_requires=['six', 'google-cloud-datastore', 'proto-google-cloud-datastore-v1', 'protorpc'],
     license='Apache 2.0',
