@@ -1625,7 +1625,8 @@ class BlobProperty(Property):
     return long_repr
 
   def _validate(self, value):
-    if not isinstance(value, bytes):
+#     if not isinstance(value, bytes):
+    if not (isinstance(value, six.string_types) or isinstance(value, six.binary_type)):
       raise datastore_errors.BadValueError('Expected bytes, got %r' %
                                            (value,))
     if (self._indexed and
@@ -1689,7 +1690,8 @@ class TextProperty(BlobProperty):
   """An unindexed Property whose value is a text string of unlimited length."""
 
   def _validate(self, value):
-    if not isinstance(value, str):
+    #if not isinstance(value, str):
+    if not isinstance(value, six.string_types):
       raise datastore_errors.BadValueError('Expected string, got %r' %
                                            (value,))
     if self._indexed and len(value) > _MAX_STRING_LENGTH:
@@ -2797,7 +2799,7 @@ class MetaModel(type):
     return '%s<%s>' % (cls.__name__, ', '.join(props))
 
 
-class Model(_NotEqualMixin, metaclass=MetaModel):
+class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
   """A class describing datastore entities.
 
   Model instances are usually called entities.  All model classes
