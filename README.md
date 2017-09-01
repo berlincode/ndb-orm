@@ -3,6 +3,7 @@ Python-NDB-ORM
 
 [![Travis CI](https://travis-ci.org/berlincode/ndb-orm.svg?branch=master&style=flat)](https://travis-ci.org/berlincode/ndb-orm)
 [![Python versions](https://img.shields.io/pypi/pyversions/ndb-orm.svg)](https://pypi.python.org/pypi/ndb-orm/)
+[![Apache License 2.0](https://img.shields.io/pypi/l/ndb-orm.svg)](https://github.com/berlincode/ndb-orm/blob/master/LICENSE.txt)
 
 NDB-ORM is a python3 compatible orm for google cloud datastore based on ndb.model (created by Guido van Rossum) and
 may be used outside of app engine standard environment.
