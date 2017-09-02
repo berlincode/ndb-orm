@@ -24,7 +24,7 @@ Public repository:
 https://github.com/berlincode/ndb-orm
 """
 
-__version__ = '0.3.1' # originally based on ndb '1.0.10'
+__version__ = '0.4.0' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
 
 from google.cloud import datastore
 from google.cloud.datastore.key import Key

@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 # vim: sts=2:ts=2:sw=2
 
@@ -7,7 +6,9 @@ from unittest import TestCase, main
 import os
 import binascii
 import ndb_orm as ndb
+from protorpc import messages
 from google.cloud.proto.datastore.v1 import entity_pb2
+from . import person_pb2
 
 USE_DATASTORE = False # default
 
@@ -23,6 +24,53 @@ if 'DATASTORE_ENV_YAML' in os.environ:
 
 class Person(ndb.Model):
   name = ndb.TextProperty(indexed=False, compressed=True)
+
+class Items(ndb.Model):
+  has_hat = ndb.BooleanProperty("hh")
+  number_of_socks = ndb.IntegerProperty("ns")
+
+class Gender(messages.Enum):
+  male = 1
+  female = 2
+  neutral = 3
+
+class Human2(ndb.Model):
+  name = ndb.StringProperty("na", indexed=True)
+  gender = ndb.msgprop.EnumProperty(Gender, "g", required=True, indexed=True)
+  age = ndb.IntegerProperty("ag", indexed=False)
+  items = ndb.StructuredProperty(Items, "i", required=True)
+  numbers = ndb.JsonProperty('json', indexed=False)
+  description = ndb.TextProperty("t", indexed=False)
+  description2 = ndb.TextProperty("t2", compressed=True, indexed=False)
+  meters_tall = ndb.FloatProperty("mtrs", indexed=False)
+  datetime_of_birth = ndb.DateTimeProperty("dtb", indexed=False)
+  date_of_birth = ndb.DateProperty("db", indexed=False)
+  time_of_birth = ndb.TimeProperty("tb", indexed=False)
+  hobbies = ndb.StringProperty('hob', repeated=True, indexed=False)
+  pickle = ndb.PickleProperty('pi', indexed=False)
+  binary = ndb.BlobProperty("bi", indexed=False)
+  home = ndb.GeoPtProperty("ho", indexed=False)
+  generic = ndb.GenericProperty("gen", indexed=False)
+  model = ndb.LocalStructuredProperty(Items, "mo", indexed=False)
+  person_details = ndb.msgprop.MessageProperty(person_pb2.Person, "pd")
+
+  number_of_hobbies = ndb.ComputedProperty(name="num_hob", func=lambda self: len(self.hobbies), indexed=False)
+  default_info = ndb.StringProperty("di", indexed=False, default='unknown')
+  update = ndb.DateTimeProperty("up", indexed=False, auto_now=True)
+
+  def _pre_put_hook(self):
+    pass
+
+class B(ndb.Model):
+    c = ndb.IntegerProperty()
+    d = ndb.IntegerProperty()
+
+class A(ndb.Model):
+    b = ndb.StructuredProperty(B) #, required=True)
+
+class Foo(ndb.Model):
+    # top-level model
+    a = ndb.StructuredProperty(A, repeated=True)
 
 def enity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
   if USE_DATASTORE:
@@ -42,10 +90,12 @@ def enity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
 
   # serialize to binary string
   pb_binary_string = pb.SerializeToString()
+  #print(binascii.hexlify(pb_binary_string))
 
   # create protocolbuffer enitiy out of binary string
   pb = entity_pb2.Entity()
   pb.ParseFromString(pb_binary_string)
+  #print(pb)
   return ndb.model_from_protobuf(pb)
 
 class ProtocolBuffer(TestCase):
@@ -66,21 +116,10 @@ class ProtocolBuffer(TestCase):
 
     import datetime
     import binascii
-    from protorpc import messages
-    from . import person_pb2
 
     namespace = "your-namespace"
 
     ndb.model.ENABLE_PICKLE_LOADS = True # might be dangerous in production
-
-    class Items(ndb.Model):
-      has_hat = ndb.BooleanProperty("hh")
-      number_of_socks = ndb.IntegerProperty("ns")
-
-    class Gender(messages.Enum):
-      male = 1
-      female = 2
-      neutral = 3
 
     person = person_pb2.Person()
     person.id = 1234
@@ -89,33 +128,6 @@ class ProtocolBuffer(TestCase):
     phone = person.phones.add()
     phone.number = "555-4321"
     phone.type = person_pb2.Person.HOME
-
-    class Human2(ndb.Model):
-      name = ndb.StringProperty("na", indexed=True)
-      gender = ndb.msgprop.EnumProperty(Gender, "g", required=True, indexed=True)
-      age = ndb.IntegerProperty("ag", indexed=False)
-      items = ndb.StructuredProperty(Items, "i", required=True)
-      numbers = ndb.JsonProperty('json', indexed=False)
-      description = ndb.TextProperty("t", indexed=False)
-      description2 = ndb.TextProperty("t2", compressed=True, indexed=False)
-      meters_tall = ndb.FloatProperty("mtrs", indexed=False)
-      datetime_of_birth = ndb.DateTimeProperty("dtb", indexed=False)
-      date_of_birth = ndb.DateProperty("db", indexed=False)
-      time_of_birth = ndb.TimeProperty("tb", indexed=False)
-      hobbies = ndb.StringProperty('hob', repeated=True, indexed=False)
-      pickle = ndb.PickleProperty('pi', indexed=False)
-      binary = ndb.BlobProperty("bi", indexed=False)
-      home = ndb.GeoPtProperty("ho", indexed=False)
-      generic = ndb.GenericProperty("gen", indexed=False)
-      model = ndb.LocalStructuredProperty(Items, "mo", indexed=False)
-      person_details = ndb.msgprop.MessageProperty(person_pb2.Person, "pd")
-
-      number_of_hobbies = ndb.ComputedProperty(name="num_hob", func=lambda self: len(self.hobbies), indexed=False)
-      default_info = ndb.StringProperty("di", indexed=False, default='unknown')
-      update = ndb.DateTimeProperty("up", indexed=False, auto_now=True)
-
-      def _pre_put_hook(self):
-        pass
 
     human = Human2(
       name='Arthur Dent',
@@ -269,6 +281,61 @@ class ProtocolBuffer(TestCase):
     self.assertEqual(human_recovered.number_of_hobbies, 2)
     self.assertEqual(human_recovered.default_info, "unknown")
     self.assertEqual(isinstance(human_recovered.update, datetime.date), True)
+
+  def test_repeated_structuredproperty(self):
+
+    foo = Foo(
+      a=[
+        A(b=B()),
+        A(b=B(c=1)),
+#         A(b=None),
+        A(b=B(c=2, d=3))
+      ]
+    )
+
+#     foo = Foo(
+#       a=[
+#         A(b=None),
+#         A(b=B(c=1, d=2)),
+#         A(b=None),
+#         A(b=B(c=3, d=4))
+#       ]
+#     )
+
+
+#     This will result in a serialized structure:
+
+#     1) a.b   = None
+#     2) a.b.c = 1
+#     3) a.b.d = None
+#     4) a.b   = None
+#     5) a.b.c = 2
+#     6) a.b.d = 3
+
+#     The counter state should be the following:
+#         a | a.b | a.b.c | a.b.d
+#     0) -    -      -       -
+#     1) @1   1      -       -
+#     2) @2   @2     2       -
+#     3) @2   @2     2       2
+#     4) @3   @3     3       3
+#     5) @4   @4     4       3
+#     6) @4   @4     4       4
+
+#     Here, @ indicates that this counter value is actually a calculated value.
+#     It is equal to the MAX of its sub-counters.
+
+    foo_recovered = enity_to_binary_to_entity(foo)
+
+    self.assertEqual(foo_recovered.a[0].b.c, None)
+    self.assertEqual(foo_recovered.a[0].b.d, None)
+
+    self.assertEqual(foo_recovered.a[1].b.c, 1)
+    self.assertEqual(foo_recovered.a[1].b.d, None)
+
+    self.assertEqual(foo_recovered.a[2].b.c, 2)
+    self.assertEqual(foo_recovered.a[2].b.d, 3)
+
 
 if __name__ == '__main__':
   main()

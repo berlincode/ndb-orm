@@ -11,7 +11,7 @@ except ImportError:
     from distutils.core import setup
 
 if sys.argv[-1] == 'publish':
-    os.system('pandoc -o README.rst README.md')
+    os.system('pandoc --from=markdown --to=rst -o README.rst README.md')
     os.system('python setup.py sdist upload')
     sys.exit()
 
@@ -20,7 +20,7 @@ HISTORY = open('CHANGES.txt').read().replace('.. :changelog:', '')
 
 setup(
     name='ndb-orm',
-    version='0.3.1',
+    version='0.4.0',
     description="google datatstore ndb orm which might be used with google-cloud-datastore (python3 compatible)",
     long_description=README + '\n\n' + HISTORY,
     author='Ulf Bartel',
@@ -42,7 +42,7 @@ setup(
         'License :: OSI Approved :: Apache Software License',
         'Natural Language :: English',
         'Programming Language :: Python :: 2.7',
-        'Programming Language :: Python :: 3.5',
+        'Programming Language :: Python :: 3.6',
     ],
     test_suite='tests',
 )

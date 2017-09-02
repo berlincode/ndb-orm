@@ -106,7 +106,7 @@ Enjoy this beautiful ORM !
 Public repository
 -----------------
 
-https://github.com/berlincode/ndb-orm
+[https://github.com/berlincode/ndb-orm](https://github.com/berlincode/ndb-orm)
 
 
 License

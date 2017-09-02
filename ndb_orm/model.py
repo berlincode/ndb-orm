@@ -1842,14 +1842,16 @@ class JsonProperty(BlobProperty):
       import json
     except ImportError:
       import simplejson as json
-    return json.dumps(value, separators=(',', ':'))
+    return json.dumps(value).encode()
+    #return json.dumps(value, separators=(',', ':'))
 
   def _from_base_type(self, value):
     try:
       import json
     except ImportError:
       import simplejson as json
-    return json.loads(value)
+    return json.loads(value.decode())
+    #return json.loads(value)
 
 
 class UserProperty(Property):
@@ -2392,6 +2394,11 @@ class StructuredProperty(_StructuredGetForDictMixin):
       prop._deserialize(name, subentity, p, depth + 1)
       return
 
+    if not p.array_value.values:
+      raise RuntimeError('StructuredProperty "%s" is repeated and expected '
+                         '"%s" to be an array' %
+                         (self._name, name))
+
     # The repeated case is more complicated.
     # TODO: Prove we won't get here for orphans.
     parts = name.split('.')
@@ -2399,68 +2406,69 @@ class StructuredProperty(_StructuredGetForDictMixin):
       raise RuntimeError('StructuredProperty %s expected to find properties '
                          'separated by periods at a depth of %i; received %r' %
                          (self._name, depth, parts))
-    next = parts[depth]
-    rest = parts[depth + 1:]
-    prop = self._modelclass._properties.get(next)
-    prop_is_fake = False
-    if prop is None:
-      # Synthesize a fake property.  (We can't use Model._fake_property()
-      # because we need the property before we can determine the subentity.)
-      if rest:
-        # TODO: Handle this case, too.
-        logging.warn('Skipping unknown structured subproperty (%s) '
-                     'in repeated structured property (%s of %s)',
-                     name, self._name, entity.__class__.__name__)
-        return
-      # TODO: Figure out the value for indexed.  Unfortunately we'd
-      # need this passed in from _from_pb(), which would mean a
-      # signature change for _deserialize(), which might break valid
-      # end-user code that overrides it.
-      compressed = False
-      prop = GenericProperty(next, compressed=compressed)
-      prop._code_name = next
-      prop_is_fake = True
 
-    # Find the first subentity that doesn't have a value for this
-    # property yet.
-    if not hasattr(entity, '_subentity_counter'):
-      entity._subentity_counter = _NestedCounter()
-    counter = entity._subentity_counter
-    counter_path = parts[depth - 1:]
-    next_index = counter.get(counter_path)
-    subentity = None
-    if self._has_value(entity):
-      # If an entire subentity has been set to None, we have to loop
-      # to advance until we find the next partial entity.
-      while next_index < self._get_value_size(entity):
-        subentity = self._get_base_value_at_index(entity, next_index)
-        if not isinstance(subentity, self._modelclass):
-          raise TypeError('sub-entities must be instances '
-                          'of their Model class.')
-        if not prop._has_value(subentity, rest):
-          break
-        next_index = counter.increment(counter_path)
-      else:
-        subentity = None
-    # The current property is going to be populated, so advance the counter.
-    counter.increment(counter_path)
-    if not subentity:
-      # We didn't find one.  Add a new one to the underlying list of
-      # values.
-      subentity = self._modelclass()
-      values = self._retrieve_value(entity, self._default)
-      if values is None:
-        self._store_value(entity, [])
+    for p_array_elm in p.array_value.values:
+      next = parts[depth]
+      rest = parts[depth + 1:]
+      prop = self._modelclass._properties.get(next)
+      prop_is_fake = False
+      if prop is None:
+        # Synthesize a fake property.  (We can't use Model._fake_property()
+        # because we need the property before we can determine the subentity.)
+        if rest:
+          # TODO: Handle this case, too.
+          logging.warn('Skipping unknown structured subproperty (%s) '
+                      'in repeated structured property (%s of %s)',
+                      name, self._name, entity.__class__.__name__)
+          return
+        # TODO: Figure out the value for indexed.  Unfortunately we'd
+        # need this passed in from _from_pb(), which would mean a
+        # signature change for _deserialize(), which might break valid
+        # end-user code that overrides it.
+        compressed = False
+        prop = GenericProperty(next, compressed=compressed)
+        prop._code_name = next
+        prop_is_fake = True
+
+      # Find the first subentity that doesn't have a value for this
+      # property yet.
+      if not hasattr(entity, '_subentity_counter'):
+        entity._subentity_counter = _NestedCounter()
+      counter = entity._subentity_counter
+      counter_path = parts[depth - 1:]
+      next_index = counter.get(counter_path)
+      subentity = None
+      if self._has_value(entity):
+        # If an entire subentity has been set to None, we have to loop
+        # to advance until we find the next partial entity.
+        while next_index < self._get_value_size(entity):
+          subentity = self._get_base_value_at_index(entity, next_index)
+          if not isinstance(subentity, self._modelclass):
+            raise TypeError('sub-entities must be instances '
+                            'of their Model class.')
+          if not prop._has_value(subentity, rest):
+            break
+          next_index = counter.increment(counter_path)
+        else:
+          subentity = None
+      # The current property is going to be populated, so advance the counter.
+      counter.increment(counter_path)
+      if not subentity:
+        # We didn't find one.  Add a new one to the underlying list of
+        # values.
+        subentity = self._modelclass()
         values = self._retrieve_value(entity, self._default)
-      values.append(_BaseValue(subentity))
-    if prop_is_fake:
-      # Add the synthetic property to the subentity's _properties
-      # dict, so that it will be correctly deserialized.
-      # (See Model._fake_property() for comparison.)
-      subentity._clone_properties()
-      subentity._properties[prop._name] = prop
-#     name_ = "???" # TODO 
-    prop._deserialize(name, subentity, p, depth + 1)
+        if values is None:
+          self._store_value(entity, [])
+          values = self._retrieve_value(entity, self._default)
+        values.append(_BaseValue(subentity))
+      if prop_is_fake:
+        # Add the synthetic property to the subentity's _properties
+        # dict, so that it will be correctly deserialized.
+        # (See Model._fake_property() for comparison.)
+        subentity._clone_properties()
+        subentity._properties[prop._name] = prop
+      prop._deserialize(name, subentity, p_array_elm, depth + 1)
 
   def _prepare_for_put(self, entity):
     values = self._get_base_value_unwrapped_as_list(entity)
