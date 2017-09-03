@@ -24,15 +24,17 @@ Public repository:
 https://github.com/berlincode/ndb-orm
 """
 
-__version__ = '0.4.0' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
+__version__ = '0.5.0' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
 
 from google.cloud import datastore
-from google.cloud.datastore.key import Key
+from google.cloud.datastore.key import Key as DatastoreKey
 
 # errors (originally from google.appengine.api.datastore_errors)
 from . import datastore_errors
 
 from .model import (
+  DEFAULT_PROJECT_NAME,
+
   Index, ModelAdapter, ModelAttribute,
   ModelKey, MetaModel, Model, Expando,
 
@@ -56,7 +58,6 @@ from .model import (
   )
 
 from . import msgprop
-
 
 DEFAULT_MODEL = None
 
@@ -83,8 +84,8 @@ def model_to_protobuf(entity_of_ndb_model, project, namespace=None):
   pb = entity_of_ndb_model._to_pb()
 
   if entity_of_ndb_model._key is None:
-    entity_of_ndb_model._key = Key(
-      entity_of_ndb_model.__class__.__name__, # path
+    entity_of_ndb_model._key = DatastoreKey(
+      entity_of_ndb_model._get_kind(),
       project=project,
       namespace=namespace
     )
@@ -109,6 +110,9 @@ def enable_use_with_gcd(project=None, namespace=None):
     return real_entity_to_protobuf(entity)
 
   if project:
+    global DEFAULT_PROJECT_NAME
+    DEFAULT_PROJECT_NAME = project
+
     # enable via monkey patching
     datastore.helpers.entity_from_protobuf = new_entity_from_protobuf
     datastore.helpers.entity_to_protobuf = new_entity_to_protobuf
@@ -116,3 +120,13 @@ def enable_use_with_gcd(project=None, namespace=None):
     # disable: revert to orginal functions
     datastore.helpers.entity_from_protobuf = real_entity_from_protobuf
     datastore.helpers.entity_to_protobuf = real_entity_to_protobuf
+
+class Key(DatastoreKey):
+
+  def __init__(self, model_cls, *path_args, **kwargs):
+    kwargs.setdefault('project', DEFAULT_PROJECT_NAME)
+    super(self.__class__, self).__init__(
+      model_cls._get_kind(),
+      *path_args,
+      **kwargs
+    )

@@ -316,10 +316,14 @@ import six
 from google.cloud.proto.datastore.v1 import entity_pb2
 from google.cloud._helpers import _datetime_to_pb_timestamp
 from google.cloud._helpers import _pb_timestamp_to_datetime
+from google.cloud.datastore.key import Key as DatastoreKey
 
 from . import datastore_errors
 from . import datastore_types
 from . import utils
+
+DEFAULT_PROJECT_NAME = "<default-project-name>" #google.cloud.datastore does not allow empty project names - please initialize if you use keys
+
 # defines copied form google/appengine/datastore/entity_pb.py and prefixed with 'PROPERTY_'
 PROPERTY_NO_MEANING   =    0
 PROPERTY_BLOB         =   14
@@ -2890,7 +2894,7 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
       parent: Key instance for the parent model or None for a top-level one.
         If parent is used, key must be None.
       namespace: Optional namespace.
-      app: Optional app ID.
+      project: Optional app ID / project.
       **kwds: Keyword arguments mapping to properties of this model.
 
     Note: you cannot define a property named key; the .key attribute
@@ -2907,21 +2911,29 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
     get_arg = self.__get_arg
     key = get_arg(kwds, 'key')
     id = get_arg(kwds, 'id')
-    app = get_arg(kwds, 'app')
+    project = get_arg(kwds, 'project')
     namespace = get_arg(kwds, 'namespace')
     parent = get_arg(kwds, 'parent')
     projection = get_arg(kwds, 'projection')
     if key is not None:
       if (id is not None or parent is not None or
-          app is not None or namespace is not None):
+          project is not None or namespace is not None):
         raise datastore_errors.BadArgumentError(
             'Model constructor given key= does not accept '
-            'id=, app=, namespace=, or parent=.')
+            'id=, project=, namespace=, or parent=.')
       self._key = _validate_key(key, entity=self)
     elif (id is not None or parent is not None or
-          app is not None or namespace is not None):
-        pass
-#       self._key = Key(self._get_kind(), id,
+          project is not None or namespace is not None):
+  
+        path = [id] if id else [] # path
+        self._key = DatastoreKey(
+          self._get_kind(),
+          *path,
+          project=project or DEFAULT_PROJECT_NAME, # TODO maybe rename app to project? 
+          namespace=namespace,
+          parent=parent
+        )
+#         self._key = Key(self._get_kind(), id,
 #                       parent=parent, app=app, namespace=namespace)
     self._values = {}
     self._set_attributes(kwds)
