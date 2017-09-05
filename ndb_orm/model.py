@@ -317,6 +317,7 @@ from google.cloud.proto.datastore.v1 import entity_pb2
 from google.cloud._helpers import _datetime_to_pb_timestamp
 from google.cloud._helpers import _pb_timestamp_to_datetime
 from google.cloud.datastore.key import Key as DatastoreKey
+from google.protobuf import struct_pb2
 
 from . import datastore_errors
 from . import datastore_types
@@ -332,23 +333,23 @@ def get_default_project_name():
   return DEFAULT_PROJECT_NAME
 
 # defines copied form google/appengine/datastore/entity_pb.py and prefixed with 'PROPERTY_'
-PROPERTY_NO_MEANING   =    0
-PROPERTY_BLOB         =   14
+# PROPERTY_NO_MEANING   =    0
+# PROPERTY_BLOB         =   14
 PROPERTY_TEXT         =   15
 PROPERTY_BYTESTRING   =   16
-PROPERTY_ATOM_CATEGORY =    1
-PROPERTY_ATOM_LINK    =    2
-PROPERTY_ATOM_TITLE   =    3
-PROPERTY_ATOM_CONTENT =    4
-PROPERTY_ATOM_SUMMARY =    5
-PROPERTY_ATOM_AUTHOR  =    6
+# PROPERTY_ATOM_CATEGORY =    1
+# PROPERTY_ATOM_LINK    =    2
+# PROPERTY_ATOM_TITLE   =    3
+# PROPERTY_ATOM_CONTENT =    4
+# PROPERTY_ATOM_SUMMARY =    5
+# PROPERTY_ATOM_AUTHOR  =    6
 PROPERTY_GD_WHEN      =    7
-PROPERTY_GD_EMAIL     =    8
-PROPERTY_GEORSS_POINT =    9
-PROPERTY_GD_IM        =   10
-PROPERTY_GD_PHONENUMBER =   11
-PROPERTY_GD_POSTALADDRESS =   12
-PROPERTY_GD_RATING    =   13
+# PROPERTY_GD_EMAIL     =    8
+# PROPERTY_GEORSS_POINT =    9
+# PROPERTY_GD_IM        =   10
+# PROPERTY_GD_PHONENUMBER =   11
+# PROPERTY_GD_POSTALADDRESS =   12
+# PROPERTY_GD_RATING    =   13
 PROPERTY_BLOBKEY      =   17
 PROPERTY_ENTITY_PROTO =   19
 PROPERTY_INDEX_VALUE  =   18
@@ -1419,6 +1420,8 @@ class Property(ModelAttribute):
           new_p.set_multiple(False)
           new_p.mutable_value().CopyFrom(v)
           p.CopyFrom(new_p)
+      else:
+        p.null_value = struct_pb2.NULL_VALUE
 
   def _deserialize(self, name, entity, p, unused_depth=1):
     """Internal helper to deserialize this property from a protocol buffer.
@@ -1576,6 +1579,7 @@ class IntegerProperty(Property):
     if not isinstance(value, (bool, int)):
       raise TypeError('IntegerProperty %s can only be set to integer values; '
                       'received %r' % (self._name, value))
+#     print(dir(v))
     v.integer_value = value # scalar, just assign
 
   def _db_get_value(self, v):
@@ -1695,13 +1699,15 @@ class BlobProperty(Property):
     # BLOB or BYTESTRING will cause the value to be decoded from utf-8 in
     # datastore_types.FromPropertyPb. That would break the compressed string.
     #p.set_meaning_uri(_MEANING_URI_COMPRESSED.encode())
-    p.meaning = PROPERTY_BLOB
+#     p.meaning = PROPERTY_BLOB
+    pass
 
   def _db_set_uncompressed_meaning(self, p):
     if self._indexed:
       p.meaning = PROPERTY_BYTESTRING
     else:
-      p.meaning = PROPERTY_BLOB
+      pass
+#       p.meaning = PROPERTY_BLOB
 
   def _db_get_value(self, v):
     value_type = v.WhichOneof('value_type')
@@ -1779,7 +1785,7 @@ class GeoPtProperty(Property):
     if not isinstance(value, GeoPt):
       raise TypeError('GeoPtProperty %s can only be set to GeoPt values; '
                       'received %r' % (self._name, value))
-    v.meaning = PROPERTY_GEORSS_POINT
+#     v.meaning = PROPERTY_GEORSS_POINT
     pv = v.geo_point_value
     pv.latitude = value.lat
     pv.longitude = value.lon
@@ -2584,7 +2590,8 @@ class LocalStructuredProperty(_StructuredGetForDictMixin, BlobProperty):
         value._prepare_for_put()
 
   def _db_set_uncompressed_meaning(self, p):
-    p.meaning = PROPERTY_ENTITY_PROTO
+#     p.meaning = PROPERTY_ENTITY_PROTO
+    pass
 
 
 class GenericProperty(Property):
@@ -2732,7 +2739,7 @@ class GenericProperty(Property):
       v.integer_value = ival # scalar, just assign
       v.meaning = PROPERTY_GD_WHEN
     elif isinstance(value, GeoPt):
-      v.meaning = PROPERTY_GEORSS_POINT
+#       v.meaning = PROPERTY_GEORSS_POINT
       pv = v.geo_point_value
       pv.latitude = value.lat
       pv.longitude = value.lon
@@ -2746,7 +2753,7 @@ class GenericProperty(Property):
       pb = value._to_pb(set_key=set_key)
       value = pb.SerializePartialToString()
       v.string_value = value
-      v.meaning = PROPERTY_ENTITY_PROTO
+#       v.meaning = PROPERTY_ENTITY_PROTO
 #     elif isinstance(value, _CompressedValue):
 #       value = value.z_val
 #       v.string_value = value
