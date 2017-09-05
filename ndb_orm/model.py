@@ -1401,14 +1401,12 @@ class Property(ModelAttribute):
         # Set the appropriate value.
 
       p = pb.properties.get_or_create(name)
-      if not self._indexed:
-        p.exclude_from_indexes = True
 
-# TODO
-#       p.set_multiple(self._repeated or parent_repeated)
-#       v = p.mutable_value()
       if self._repeated or parent_repeated:
         p = p.array_value.values.add()
+
+      if not self._indexed:
+        p.exclude_from_indexes = True
 
       if val is not None:
         self._db_set_value(p, val)
