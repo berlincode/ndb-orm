@@ -72,7 +72,11 @@ class Foo(ndb.Model):
     # top-level model
     a = ndb.StructuredProperty(A, repeated=True)
 
-def enity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
+class ListUnindexed(ndb.Model):
+    # top-level model
+    a = ndb.IntegerProperty(repeated=True, indexed=False)
+
+def entity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
   if USE_DATASTORE:
     from google.cloud import datastore
     from .gcloud_credentials import EmulatorCredentials
@@ -153,7 +157,7 @@ class ProtocolBuffer(TestCase):
     )
 
 
-    human_recovered = enity_to_binary_to_entity(human)
+    human_recovered = entity_to_binary_to_entity(human)
 
     # now do the tests
     self.assertEqual(human_recovered.name, 'Arthur Dent')
@@ -282,6 +286,13 @@ class ProtocolBuffer(TestCase):
     self.assertEqual(human_recovered.default_info, "unknown")
     self.assertEqual(isinstance(human_recovered.update, datetime.date), True)
 
+  def test_list_with_exclude_from_indexes(self):
+    foo = ListUnindexed(
+      a=[1, 2]
+    )
+    foo_recovered = entity_to_binary_to_entity(foo)
+    self.assertEqual(foo_recovered.a, [1, 2])
+
   def test_repeated_structuredproperty(self):
 
     foo = Foo(
@@ -325,7 +336,7 @@ class ProtocolBuffer(TestCase):
 #     Here, @ indicates that this counter value is actually a calculated value.
 #     It is equal to the MAX of its sub-counters.
 
-    foo_recovered = enity_to_binary_to_entity(foo)
+    foo_recovered = entity_to_binary_to_entity(foo)
 
     self.assertEqual(foo_recovered.a[0].b.c, None)
     self.assertEqual(foo_recovered.a[0].b.d, None)
