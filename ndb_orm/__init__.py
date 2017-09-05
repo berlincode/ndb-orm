@@ -33,7 +33,7 @@ from google.cloud.datastore.key import Key as DatastoreKey
 from . import datastore_errors
 
 from .model import (
-  DEFAULT_PROJECT_NAME,
+  set_default_project_name, get_default_project_name,
 
   Index, ModelAdapter, ModelAttribute,
   ModelKey, MetaModel, Model, Expando,
@@ -81,16 +81,16 @@ def model_from_protobuf(pb):
 
 def model_to_protobuf(entity_of_ndb_model, project, namespace=None):
   entity_of_ndb_model._prepare_for_put()
+  entity_of_ndb_model._pre_put_hook()
   pb = entity_of_ndb_model._to_pb()
 
-  if entity_of_ndb_model._key is None:
-    entity_of_ndb_model._key = DatastoreKey(
-      entity_of_ndb_model._get_kind(),
-      project=project,
-      namespace=namespace
-    )
+#   if entity_of_ndb_model._key is None:
+#     entity_of_ndb_model._key = DatastoreKey(
+#       entity_of_ndb_model._get_kind(),
+#       project=project,
+#       namespace=namespace
+#     )
 
-  entity_of_ndb_model._pre_put_hook()
   key_pb = entity_of_ndb_model._key.to_protobuf()
   pb.key.CopyFrom(key_pb)
   return pb
@@ -110,8 +110,7 @@ def enable_use_with_gcd(project=None, namespace=None):
     return real_entity_to_protobuf(entity)
 
   if project:
-    global DEFAULT_PROJECT_NAME
-    DEFAULT_PROJECT_NAME = project
+    set_default_project_name(project)
 
     # enable via monkey patching
     datastore.helpers.entity_from_protobuf = new_entity_from_protobuf
@@ -124,7 +123,7 @@ def enable_use_with_gcd(project=None, namespace=None):
 class Key(DatastoreKey):
 
   def __init__(self, model_cls, *path_args, **kwargs):
-    kwargs.setdefault('project', DEFAULT_PROJECT_NAME)
+    kwargs.setdefault('project', get_default_project_name())
     super(self.__class__, self).__init__(
       model_cls._get_kind(),
       *path_args,

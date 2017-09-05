@@ -324,6 +324,13 @@ from . import utils
 
 DEFAULT_PROJECT_NAME = "<default-project-name>" #google.cloud.datastore does not allow empty project names - please initialize if you use keys
 
+def set_default_project_name(project):
+  global DEFAULT_PROJECT_NAME
+  DEFAULT_PROJECT_NAME = project
+
+def get_default_project_name():
+  return DEFAULT_PROJECT_NAME
+
 # defines copied form google/appengine/datastore/entity_pb.py and prefixed with 'PROPERTY_'
 PROPERTY_NO_MEANING   =    0
 PROPERTY_BLOB         =   14
@@ -2922,17 +2929,18 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
             'Model constructor given key= does not accept '
             'id=, project=, namespace=, or parent=.')
       self._key = _validate_key(key, entity=self)
-    elif (id is not None or parent is not None or
-          project is not None or namespace is not None):
+#     elif (id is not None or parent is not None or
+#           project is not None or namespace is not None):
   
-        path = [id] if id else [] # path
-        self._key = DatastoreKey(
-          self._get_kind(),
-          *path,
-          project=project or DEFAULT_PROJECT_NAME, # TODO maybe rename app to project? 
-          namespace=namespace,
-          parent=parent
-        )
+    else:
+      path = [id] if id else [] # path
+      self._key = DatastoreKey(
+        self._get_kind(),
+        *path,
+        project=project or DEFAULT_PROJECT_NAME, # TODO maybe rename app to project? 
+        namespace=namespace,
+        parent=parent
+      )
 #         self._key = Key(self._get_kind(), id,
 #                       parent=parent, app=app, namespace=namespace)
     self._values = {}
