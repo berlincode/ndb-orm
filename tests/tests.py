@@ -293,6 +293,15 @@ class ProtocolBuffer(TestCase):
     foo_recovered = entity_to_binary_to_entity(foo)
     self.assertEqual(foo_recovered.a, [1, 2])
 
+  def test_list_picke(self):
+    import pickle
+    foo = ListUnindexed(
+      a=[1, 2]
+    )
+    pickled = pickle.dumps(foo, protocol=pickle.HIGHEST_PROTOCOL)
+    foo_recovered = pickle.loads(pickled)
+    self.assertEqual(foo_recovered.a, [1, 2])
+
   def test_repeated_structuredproperty(self):
 
     foo = Foo(

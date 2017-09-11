@@ -98,7 +98,7 @@ Task(key=<Key('Task', 'sampletask')>, done=False, text='Much to do', update=date
 >>> 
 ```
 
-Most property types should work just fine. Even the StructuedProperty class, and keywords 'indexed', 'repeated', 'compression', 'name' and 'required'
+Most property types should work just fine. Even the StructuredProperty class, and keywords 'indexed', 'repeated', 'compression', 'name' and 'required'
 should work as well.
 
 Enjoy this beautiful ORM !

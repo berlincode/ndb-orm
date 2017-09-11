@@ -2967,10 +2967,11 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
     return None
 
   def __getstate__(self):
-    return self._to_pb().Encode()
+    return self._to_pb().SerializeToString()
 
   def __setstate__(self, serialized_pb):
-    pb = entity_pb2.Entity(serialized_pb)
+    pb = entity_pb2.Entity()
+    pb.ParseFromString(serialized_pb)
     self.__init__()
     self.__class__._from_pb(pb, set_key=False, ent=self)
 
