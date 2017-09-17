@@ -12,6 +12,8 @@ from . import person_pb2
 
 USE_DATASTORE = False # default
 
+ndb.enable_use_with_gcd("test-project")
+
 if 'DATASTORE_ENV_YAML' in os.environ:
   print("\n!!! using datastore emulator !!!")
   import yaml
@@ -90,7 +92,7 @@ def entity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
     return entity_new
 
   # do a serialization and undserialization (without a datatstore)
-  pb = ndb.model_to_protobuf(entity, project=project)
+  pb = ndb.helpers.model_to_protobuf(entity, project=project)
 
   # serialize to binary string
   pb_binary_string = pb.SerializeToString()
@@ -100,7 +102,7 @@ def entity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
   pb = entity_pb2.Entity()
   pb.ParseFromString(pb_binary_string)
   #print(pb)
-  return ndb.model_from_protobuf(pb)
+  return ndb.helpers.model_from_protobuf(pb)
 
 class ProtocolBuffer(TestCase):
 
@@ -111,7 +113,7 @@ class ProtocolBuffer(TestCase):
 
     pb = entity_pb2.Entity()
     pb.ParseFromString(pb_binary_string)
-    model = ndb.model_from_protobuf(pb)
+    model = ndb.helpers.model_from_protobuf(pb)
 
     self.assertEqual(model._class_name(), "Person")
     self.assertEqual(model.name, "Hallo")
@@ -256,7 +258,7 @@ class ProtocolBuffer(TestCase):
 
     pb = entity_pb2.Entity()
     pb.ParseFromString(pb_binary_string)
-    human_recovered = ndb.model_from_protobuf(pb)
+    human_recovered = ndb.helpers.model_from_protobuf(pb)
 
     # now do the tests
     self.assertEqual(human_recovered.name, 'Arthur Dent')
@@ -293,7 +295,7 @@ class ProtocolBuffer(TestCase):
     foo_recovered = entity_to_binary_to_entity(foo)
     self.assertEqual(foo_recovered.a, [1, 2])
 
-  def test_list_picke(self):
+  def test_list_pickle(self):
     import pickle
     foo = ListUnindexed(
       a=[1, 2]

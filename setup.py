@@ -20,7 +20,7 @@ HISTORY = open('CHANGES.txt').read().replace('.. :changelog:', '')
 
 setup(
     name='ndb-orm',
-    version='0.6.1',
+    version='0.7.0',
     description="google datatstore ndb orm which might be used with google-cloud-datastore (python3 compatible)",
     long_description=README + '\n\n' + HISTORY,
     author='Ulf Bartel',

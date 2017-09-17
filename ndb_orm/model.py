@@ -313,15 +313,14 @@ import logging
 import zlib
 import six
 
-from google.cloud.proto.datastore.v1 import entity_pb2
-from google.cloud._helpers import _datetime_to_pb_timestamp
-from google.cloud._helpers import _pb_timestamp_to_datetime
-from google.cloud.datastore.key import Key as DatastoreKey
 from google.protobuf import struct_pb2
 
 from . import datastore_errors
 from . import datastore_types
 from . import utils
+from . import key as key_module  # NOTE: 'key' is a common local variable name.
+from . import entity as entity_module  # NOTE: 'entity' is a common local variable name.
+from . import helpers
 
 DEFAULT_PROJECT_NAME = "<default-project-name>" #google.cloud.datastore does not allow empty project names - please initialize if you use keys
 
@@ -389,8 +388,7 @@ class ComputedPropertyError(ReadonlyPropertyError):
 
 
 # Various imported limits.
-# _MAX_LONG = key_module._MAX_LONG
-_MAX_LONG = 2 ** 63  # Use 2L, see issue 65.  http://goo.gl/ELczz
+_MAX_LONG = key_module._MAX_LONG
 _MAX_STRING_LENGTH = datastore_types._MAX_STRING_LENGTH
 
 # Map index directions to human-readable strings.
@@ -1414,7 +1412,7 @@ class Property(ModelAttribute):
         if projection:
           # Projected properties have the INDEX_VALUE meaning and only contain
           # the original property's name and value.
-          new_p = entity_pb2.Property()
+          new_p = entity_module.Property()
           new_p.set_name(p.name())
           new_p.meaning = PROPERTY_INDEX_VALUE
           new_p.set_multiple(False)
@@ -2009,7 +2007,7 @@ class KeyProperty(Property):
   def _db_get_value(self, v):
     if v.WhichOneof('value_type') != 'reference_value':
       return None
-    ref = entity_pb2.Reference()
+    ref = entity_module.Reference()
     rv = v.reference_value
     if rv.has_app():
       ref.set_app(rv.app())
@@ -2101,7 +2099,7 @@ class DateTimeProperty(Property):
 #                                 'Please derive a new Property to support '
 #                                 'alternative timezones.' % self._name)
     
-    v.timestamp_value.CopyFrom(_datetime_to_pb_timestamp(value))
+    v.timestamp_value.CopyFrom(helpers.datetime_to_pb_timestamp(value))
 
     # TODO old style ndb write - not possible anymore !
 #     dt = value - _EPOCH
@@ -2115,7 +2113,7 @@ class DateTimeProperty(Property):
       ival = v.integer_value
       return _EPOCH + datetime.timedelta(microseconds=ival)
     elif value_type == 'timestamp_value':
-      return _pb_timestamp_to_datetime(v.timestamp_value)
+      return helpers.pb_timestamp_to_datetime(v.timestamp_value)
 
     return None
 
@@ -2562,10 +2560,10 @@ class LocalStructuredProperty(_StructuredGetForDictMixin, BlobProperty):
 
   def _from_base_type(self, value):
     if not isinstance(value, self._modelclass):
-      if isinstance(value, entity_pb2.Entity):
+      if isinstance(value, entity_module.Entity):
         pb = value
       else:
-        pb = entity_pb2.Entity()
+        pb = entity_module.Entity()
   #       pb.MergePartialFromString(value) # this was the original call
   #       pb.MergeFromString(value)
         pb.ParseFromString(value)
@@ -2654,7 +2652,7 @@ class GenericProperty(Property):
 #           sval = _CompressedValue(sval)
       elif meaning == PROPERTY_ENTITY_PROTO:
         # NOTE: This is only used for uncompressed LocalStructuredProperties.
-        pb = entity_pb2.Entity()
+        pb = entity_module.Entity()
 #         pb.MergePartialFromString(sval)
 #         pb.MergeFromString(sval)
         pb.ParseFromString(sval)
@@ -2939,7 +2937,7 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
   
     else:
       path = [id] if id else [] # path
-      self._key = DatastoreKey(
+      self._key = key_module.Key(
         self._get_kind(),
         *path,
         project=project or DEFAULT_PROJECT_NAME, # TODO maybe rename app to project? 
@@ -2970,7 +2968,7 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
     return self._to_pb().SerializeToString()
 
   def __setstate__(self, serialized_pb):
-    pb = entity_pb2.Entity()
+    pb = entity_module.Entity()
     pb.ParseFromString(serialized_pb)
     self.__init__()
     self.__class__._from_pb(pb, set_key=False, ent=self)
@@ -3163,7 +3161,7 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
     if not allow_partial:
       self._check_initialized()
     if pb is None:
-      pb = entity_pb2.Entity()
+      pb = entity_module.Entity()
 
     if set_key:
       # TODO: Move the key stuff into ModelAdapter.entity_to_pb()?
@@ -3199,7 +3197,7 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
   @classmethod
   def _from_pb(cls, pb, set_key=True, ent=None, key=None):
     """Internal helper to create an entity from an EntityProto protobuf."""
-    if not isinstance(pb, entity_pb2.Entity):
+    if not isinstance(pb, entity_module.Entity):
       raise TypeError('pb must be a EntityProto; received %r' % pb)
     if ent is None:
       ent = cls()
