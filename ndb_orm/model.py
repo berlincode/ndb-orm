@@ -322,15 +322,6 @@ from . import key as key_module  # NOTE: 'key' is a common local variable name.
 from . import entity as entity_module  # NOTE: 'entity' is a common local variable name.
 from . import helpers
 
-DEFAULT_PROJECT_NAME = "<default-project-name>" #google.cloud.datastore does not allow empty project names - please initialize if you use keys
-
-def set_default_project_name(project):
-  global DEFAULT_PROJECT_NAME
-  DEFAULT_PROJECT_NAME = project
-
-def get_default_project_name():
-  return DEFAULT_PROJECT_NAME
-
 # defines copied form google/appengine/datastore/entity_pb.py and prefixed with 'PROPERTY_'
 # PROPERTY_NO_MEANING   =    0
 # PROPERTY_BLOB         =   14
@@ -2938,9 +2929,9 @@ class Model(six.with_metaclass(MetaModel, _NotEqualMixin)):
     else:
       path = [id] if id else [] # path
       self._key = key_module.Key(
-        self._get_kind(),
+        self,
         *path,
-        project=project or DEFAULT_PROJECT_NAME, # TODO maybe rename app to project? 
+        project=project,
         namespace=namespace,
         parent=parent
       )

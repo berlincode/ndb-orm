@@ -30,8 +30,6 @@ __version__ = '0.7.0' # originally based on ndb '1.0.10', but partly sync'ed to 
 from . import datastore_errors
 
 from .model import (
-  set_default_project_name, get_default_project_name,
-
   Index, ModelAdapter, ModelAttribute,
   ModelKey, MetaModel, Model, Expando,
 
@@ -55,7 +53,8 @@ from .model import (
   )
 
 from . import msgprop
-# from .key import Key
+from .key import Key, set_default_project_name #, get_default_project_name
+
 from . import key as key_module
 from . import entity as entity_module
 from . import helpers
@@ -136,17 +135,7 @@ def enable_use_with_gcd(project=None, namespace=None):
     datastore.helpers.entity_from_protobuf = real_entity_from_protobuf
     datastore.helpers.entity_to_protobuf = real_entity_to_protobuf
 
-#   class KeyDatastore(DatastoreKey):
-
-#     def __init__(self, model_cls, *path_args, **kwargs):
-#       kwargs.setdefault('project', get_default_project_name())
-#       super(self.__class__, self).__init__(
-#         model_cls._get_kind(),
-#         *path_args,
-#         **kwargs
-#       )
-
-  key_module.Key = DatastoreKey
+  key_module.KeyBase = DatastoreKey
   entity_module.Entity = entity_pb2.Entity
   entity_module.Property = entity_module.Property
   entity_module.Reference = entity_module.Reference

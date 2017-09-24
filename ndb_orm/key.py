@@ -1,10 +1,27 @@
 # -*- encoding: utf-8 -*-
 # vim: sts=2:ts=2:sw=2
 
-# TODO python 2 compat (2L ** 63)
-_MAX_LONG = 2 ** 63  # Use 2L, see issue 65.  http://goo.gl/ELczz
+_MAX_LONG = 2 ** 63
 # _MAX_KEYPART_BYTES = 500
 
-class Key(object):
+DEFAULT_PROJECT_NAME = "<default-project-name>" #google.cloud.datastore does not allow empty project names - please initialize if you use keys
+
+def set_default_project_name(project):
+  global DEFAULT_PROJECT_NAME
+  DEFAULT_PROJECT_NAME = project
+
+def get_default_project_name():
+  return DEFAULT_PROJECT_NAME
+
+
+class KeyBase(object):
   def __init__(self, *_args, **_kwargs):
-    raise NotImplementedError('Key class is not set up (yet)')
+    raise NotImplementedError('KeyBase class is not set up (yet)')
+
+def Key(model_cls, *path_args, **kwargs):
+    kwargs['project'] = kwargs.pop('project', None) or get_default_project_name()
+    return KeyBase(
+      model_cls._get_kind(),
+      *path_args,
+      **kwargs
+    )
