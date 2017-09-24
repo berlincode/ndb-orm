@@ -12,7 +12,6 @@ from . import person_pb2
 
 USE_DATASTORE = False # default
 
-ndb.enable_use_with_gcd("test-project")
 
 if 'DATASTORE_ENV_YAML' in os.environ:
   print("\n!!! using datastore emulator !!!")
@@ -23,6 +22,11 @@ if 'DATASTORE_ENV_YAML' in os.environ:
   datastore_emulator_env_vars = {key: value.replace('::1', 'localhost') for key, value in datastore_emulator_env_vars.items()}
   os.environ.update(datastore_emulator_env_vars)
   USE_DATASTORE = True
+  PROJECT = datastore_emulator_env_vars['DATASTORE_PROJECT_ID']
+else:
+  PROJECT = "your-project"
+
+ndb.enable_use_with_gcd(project=PROJECT)
 
 class Person(ndb.Model):
   name = ndb.TextProperty(indexed=False, compressed=True)
@@ -78,21 +82,21 @@ class ListUnindexed(ndb.Model):
     # top-level model
     a = ndb.IntegerProperty(repeated=True, indexed=False)
 
-def entity_to_binary_to_entity(entity, entity_id=123, project="your-project"):
+def entity_to_binary_to_entity(entity, entity_id=123):
   if USE_DATASTORE:
     from google.cloud import datastore
     from .gcloud_credentials import EmulatorCredentials
-    client = datastore.Client(project=project, credentials=EmulatorCredentials())
-    ndb.enable_use_with_gcd(project=project)
-    key = client.key(entity._get_kind(), entity_id) # The Cloud Datastore key for the new entity
+#     project = project or "your-project"
+    client = datastore.Client(project=PROJECT, credentials=EmulatorCredentials())
 
-    entity._key = key # TODO remove / fix
     client.put(entity)
+
+    key = entity._key
     entity_new = client.get(key)
     return entity_new
 
   # do a serialization and undserialization (without a datatstore)
-  pb = ndb.helpers.model_to_protobuf(entity, project=project)
+  pb = ndb.helpers.model_to_protobuf(entity, project=PROJECT)
 
   # serialize to binary string
   pb_binary_string = pb.SerializeToString()

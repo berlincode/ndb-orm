@@ -303,7 +303,8 @@ Property subclass is in the docstring for the Property class.
 
 __author__ = 'guido@google.com (Guido van Rossum)'
 
-ENABLE_PICKLE_LOADS = False # the save default
+#ENABLE_PICKLE_LOADS = False # the save default
+ENABLE_PICKLE_LOADS = True # might be dangerous in production
 
 import collections
 import copy

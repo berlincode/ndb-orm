@@ -20,6 +20,11 @@ class KeyBase(object):
 
 def Key(model_cls, *path_args, **kwargs):
     kwargs['project'] = kwargs.pop('project', None) or get_default_project_name()
+
+    path_args = list(path_args)
+    for i in range(1, len(path_args), 2):
+      path_args[i] = path_args[i]._get_kind()
+    
     return KeyBase(
       model_cls._get_kind(),
       *path_args,
