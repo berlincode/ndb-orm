@@ -1855,8 +1855,7 @@ class JsonProperty(BlobProperty):
       import json
     except ImportError:
       import simplejson as json
-    return json.loads(value.decode())
-    #return json.loads(value)
+    return json.loads(value)
 
 
 class UserProperty(Property):
