@@ -24,7 +24,7 @@ Public repository:
 https://github.com/berlincode/ndb-orm
 """
 
-__version__ = '0.7.3' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
+__version__ = '0.7.4' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
 
 # errors (originally from google.appengine.api.datastore_errors)
 from . import datastore_errors

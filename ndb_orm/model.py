@@ -2637,8 +2637,8 @@ class GenericProperty(Property):
       meaning = v.meaning
       if meaning == PROPERTY_BLOBKEY:
         sval = BlobKey(sval)
-      elif meaning == PROPERTY_BLOB:
-        pass
+#       elif meaning == PROPERTY_BLOB:
+#         pass
 #         if p.meaning_uri().decode() == _MEANING_URI_COMPRESSED:
 #           sval = _CompressedValue(sval)
       elif meaning == PROPERTY_ENTITY_PROTO:
@@ -2652,15 +2652,15 @@ class GenericProperty(Property):
           kind = pb.key().path().element(-1).type()
           modelclass = Model._kind_map.get(kind, modelclass)
         sval = modelclass._from_pb(pb)
-      elif meaning != PROPERTY_BYTESTRING:
-        try:
-          sval.decode('ascii')
+#       elif meaning != PROPERTY_BYTESTRING:
+#         try:
+#           sval.decode('ascii')
           # If this passes, don't return unicode.
-        except UnicodeDecodeError:
-          try:
-            sval = str(sval.decode('utf-8'))
-          except UnicodeDecodeError:
-            pass
+#         except UnicodeDecodeError:
+#           try:
+#             sval = str(sval.decode('utf-8'))
+#           except UnicodeDecodeError:
+#             pass
       return sval
     elif value_type == 'integer_value':
       ival = v.integer_value
