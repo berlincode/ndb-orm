@@ -18,6 +18,9 @@ class KeyBase(object):
   def __init__(self, *_args, **_kwargs):
     raise NotImplementedError('KeyBase class is not set up (yet)')
 
+  def get(self):
+    raise NotImplementedError('KeyBase class is not set up (yet)')
+
 def Key(model_cls, *path_args, **kwargs):
     kwargs['project'] = kwargs.pop('project', None) or get_default_project_name()
 
