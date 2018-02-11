@@ -13,7 +13,6 @@ def set_default_project_name(project):
 def get_default_project_name():
   return DEFAULT_PROJECT_NAME
 
-
 class KeyBase(object):
   def __init__(self, *_args, **_kwargs):
     raise NotImplementedError('KeyBase class is not set up (yet)')
@@ -21,7 +20,16 @@ class KeyBase(object):
   def get(self):
     raise NotImplementedError('KeyBase class is not set up (yet)')
 
-def Key(model_cls, *path_args, **kwargs):
+  def delete(self):
+    raise NotImplementedError('KeyBase class is not set up (yet)')
+
+  @classmethod
+  def from_legacy_urlsafe(_cls, _urlsafe):
+    raise NotImplementedError('KeyBase class is not set up (yet)')
+
+class KeyClass(object):
+
+  def __call__(self, model_cls, *path_args, **kwargs):
     kwargs['project'] = kwargs.pop('project', None) or get_default_project_name()
 
     path_args = list(path_args)
@@ -33,3 +41,10 @@ def Key(model_cls, *path_args, **kwargs):
       *path_args,
       **kwargs
     )
+
+  @classmethod
+  def from_legacy_urlsafe(cls, urlsafe):
+    print("---------- from_legacy_urlsafe()")
+    return KeyBase.from_legacy_urlsafe(urlsafe)
+
+Key = KeyClass()
