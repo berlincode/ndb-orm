@@ -44,7 +44,6 @@ class KeyClass(object):
 
   @classmethod
   def from_legacy_urlsafe(cls, urlsafe):
-    print("---------- from_legacy_urlsafe()")
     return KeyBase.from_legacy_urlsafe(urlsafe)
 
 Key = KeyClass()

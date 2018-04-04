@@ -7,7 +7,7 @@ import os
 import binascii
 import ndb_orm as ndb
 from protorpc import messages
-from google.cloud.proto.datastore.v1 import entity_pb2
+from google.cloud.datastore_v1.proto import entity_pb2
 from . import person_pb2
 
 USE_DATASTORE = False # default

@@ -24,7 +24,7 @@ Public repository:
 https://github.com/berlincode/ndb-orm
 """
 
-__version__ = '0.7.6' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
+__version__ = '0.8.0' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
 
 # errors (originally from google.appengine.api.datastore_errors)
 from . import datastore_errors
@@ -68,7 +68,7 @@ real_entity_to_protobuf = None
 def enable_use_with_gcd(project=None, namespace=None):
   from google.cloud import datastore
   from google.cloud.datastore.key import Key as DatastoreKey
-  from google.cloud.proto.datastore.v1 import entity_pb2
+  from google.cloud.datastore_v1.proto import entity_pb2
   from google.cloud._helpers import _datetime_to_pb_timestamp
   from google.cloud._helpers import _pb_timestamp_to_datetime
 

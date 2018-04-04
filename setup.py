@@ -20,7 +20,7 @@ HISTORY = open('CHANGES.txt').read().replace('.. :changelog:', '')
 
 setup(
     name='ndb-orm',
-    version='0.7.6',
+    version='0.8.0',
     description="google datatstore ndb orm which might be used with google-cloud-datastore (python3 compatible)",
     long_description=README + '\n\n' + HISTORY,
     author='Ulf Bartel',
@@ -31,7 +31,7 @@ setup(
     ],
     package_dir={'ndb_orm': 'ndb_orm'},
     include_package_data=True,
-    install_requires=['six', 'google-cloud-datastore', 'proto-google-cloud-datastore-v1', 'protorpc'],
+    install_requires=['six', 'google-cloud-datastore>=1.5.0', 'proto-google-cloud-datastore-v1', 'protorpc'],
     license='Apache 2.0',
     zip_safe=False,
     keywords='ndb, model, orm, app engine standard, flexible, datastore, python3, migrate',
