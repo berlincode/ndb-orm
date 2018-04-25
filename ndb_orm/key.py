@@ -1,6 +1,8 @@
 # -*- encoding: utf-8 -*-
 # vim: sts=2:ts=2:sw=2
 
+import six
+
 _MAX_LONG = 2 ** 63
 # _MAX_KEYPART_BYTES = 500
 
@@ -32,12 +34,20 @@ class KeyClass(object):
   def __call__(self, model_cls, *path_args, **kwargs):
     kwargs['project'] = kwargs.pop('project', None) or get_default_project_name()
 
+    # accept model classes and plain strings as object instances
+    if isinstance(model_cls, six.string_types):
+      model_cls_str = model_cls
+    else:
+      model_cls_str = model_cls._get_kind()
+
     path_args = list(path_args)
     for i in range(1, len(path_args), 2):
-      path_args[i] = path_args[i]._get_kind()
+      # accept both, plain strings and object instances as path
+      if not isinstance(model_cls, six.string_types):
+        path_args[i] = path_args[i]._get_kind()
     
     return KeyBase(
-      model_cls._get_kind(),
+      model_cls_str,
       *path_args,
       **kwargs
     )
