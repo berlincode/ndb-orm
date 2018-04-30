@@ -17,7 +17,7 @@ def get_default_project_name():
 
 class KeyBase(object):
   def __init__(self, *_args, **_kwargs):
-    raise NotImplementedError('KeyBase class is not set up (yet)')
+    raise NotImplementedError('KeyBase class is not set up (yet). \n Ensure you initialize your project with <ndb.enable_use_with_gcd(client.project)>')
 
   def get(self):
     raise NotImplementedError('KeyBase class is not set up (yet)')
