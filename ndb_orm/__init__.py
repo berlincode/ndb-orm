@@ -24,7 +24,7 @@ Public repository:
 https://github.com/berlincode/ndb-orm
 """
 
-__version__ = '0.8.0' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
+__version__ = '0.9.0' # originally based on ndb '1.0.10', but partly sync'ed to newer versions
 
 # errors (originally from google.appengine.api.datastore_errors)
 from . import datastore_errors
@@ -96,6 +96,9 @@ def enable_use_with_gcd(project=None, namespace=None):
     return entity
 
   def model_to_protobuf_datastore(entity_of_ndb_model, project, namespace=None):
+    if namespace and entity_of_ndb_model._key and (entity_of_ndb_model._key.namespace == None):
+        # add namespace
+        entity_of_ndb_model._key._namespace = namespace
     entity_of_ndb_model._prepare_for_put()
     entity_of_ndb_model._pre_put_hook()
     pb = entity_of_ndb_model._to_pb()
@@ -120,7 +123,11 @@ def enable_use_with_gcd(project=None, namespace=None):
 
   def new_entity_to_protobuf(entity):
     if isinstance(entity, Model):
-      return helpers.model_to_protobuf(entity, project, namespace)
+      if entity._key and entity._key.namespace:
+        ns = entity._key.namespace
+      else:
+        ns = namespace # default namespace
+      return helpers.model_to_protobuf(entity, project, ns)
 
     return real_entity_to_protobuf(entity)
 

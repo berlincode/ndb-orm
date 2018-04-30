@@ -40,6 +40,13 @@ class Gender(messages.Enum):
   female = 2
   neutral = 3
 
+class DepartmentRoot(ndb.Model):
+  pass
+
+class Department(ndb.Model):
+  department_id = ndb.IntegerProperty()
+  name = ndb.StringProperty()
+
 class Human2(ndb.Model):
   name = ndb.StringProperty("na", indexed=True)
   gender = ndb.msgprop.EnumProperty(Gender, "g", required=True, indexed=True)
@@ -59,6 +66,8 @@ class Human2(ndb.Model):
   generic = ndb.GenericProperty("gen", indexed=False)
   model = ndb.LocalStructuredProperty(Items, "mo", indexed=False)
   person_details = ndb.msgprop.MessageProperty(person_pb2.Person, "pd")
+  key_prop = ndb.KeyProperty(Department)
+  key_prop2 = ndb.KeyProperty()
 
   number_of_hobbies = ndb.ComputedProperty(name="num_hob", func=lambda self: len(self.hobbies), indexed=False)
   default_info = ndb.StringProperty("di", indexed=False, default='unknown')
@@ -139,6 +148,19 @@ class ProtocolBuffer(TestCase):
     phone.number = "555-4321"
     phone.type = person_pb2.Person.HOME
 
+    department = Department(
+      id="dept_id",
+      department_id=123,
+      name="department"
+    )
+
+    if USE_DATASTORE:
+      from google.cloud import datastore
+      from .gcloud_credentials import EmulatorCredentials
+      client = datastore.Client(project=PROJECT, credentials=EmulatorCredentials())
+
+      client.put(department)
+
     human = Human2(
       name='Arthur Dent',
       gender=Gender.male,
@@ -159,6 +181,8 @@ class ProtocolBuffer(TestCase):
       #model=Items(has_hat=True, number_of_socks=3, namespace=namespace).to_dict(),
       model=Items(has_hat=True, number_of_socks=3, namespace=namespace),
       person_details=person,
+      key_prop=department.key,
+      key_prop2=ndb.Key(DepartmentRoot, "root", Department, "dept_id2"),
       namespace=namespace
     )
 
@@ -188,11 +212,22 @@ class ProtocolBuffer(TestCase):
     self.assertEqual(human_recovered.model.has_hat, True)
     self.assertEqual(human_recovered.model.number_of_socks, 3)
     self.assertEqual(human_recovered.person_details.phones[0].number, "555-4321")
+    self.assertEqual(human_recovered.key_prop, ndb.Key(Department, "dept_id"))
+    self.assertEqual(human_recovered.key_prop2, ndb.Key(DepartmentRoot, "root", Department, "dept_id2"))
 
     # these were set automatically
     self.assertEqual(human_recovered.number_of_hobbies, 2)
     self.assertEqual(human_recovered.default_info, "unknown")
     self.assertEqual(isinstance(human_recovered.update, datetime.date), True)
+
+    if USE_DATASTORE:
+      from google.cloud import datastore
+      from .gcloud_credentials import EmulatorCredentials
+      client = datastore.Client(project=PROJECT, credentials=EmulatorCredentials())
+
+      department_db = client.get(human_recovered.key_prop)
+      self.assertEqual(department_db.department_id, 123)
+      self.assertEqual(department_db.name, "department")
 
     ndb.model.ENABLE_PICKLE_LOADS = False
 

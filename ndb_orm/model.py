@@ -1958,8 +1958,9 @@ class KeyProperty(Property):
     if kind is not None:
       if isinstance(kind, type) and issubclass(kind, Model):
         kind = kind._get_kind()
-      if isinstance(kind, unicode):
-        kind = kind.encode('utf-8')
+# six.string_types
+#       if isinstance(kind, unicode):
+#         kind = kind.encode('utf-8')
       if not isinstance(kind, str):
         raise TypeError('kind must be a Model class or a string')
 
@@ -1971,43 +1972,30 @@ class KeyProperty(Property):
     return datastore_types.Key(value.urlsafe())
 
   def _validate(self, value):
-    if not isinstance(value, Key):
+    if not isinstance(value, key_module.KeyBase):
       raise datastore_errors.BadValueError('Expected Key, got %r' % (value,))
     # Reject incomplete keys.
-    if not value.id():
-      raise datastore_errors.BadValueError('Expected complete Key, got %r' %
-                                           (value,))
+    #if not value.id():
+    #  raise datastore_errors.BadValueError('Expected complete Key, got %r' %
+    #                                       (value,))
     if self._kind is not None:
-      if value.kind() != self._kind:
+      if value.kind != self._kind:
         raise datastore_errors.BadValueError(
             'Expected Key with kind=%r, got %r' % (self._kind, value))
 
   def _db_set_value(self, v, value):
-    if not isinstance(value, Key):
+    if not isinstance(value, key_module.KeyBase):
       raise TypeError('KeyProperty %s can only be set to Key values; '
                       'received %r' % (self._name, value))
-    # See datastore_types.PackKey
-    ref = value.reference()
-    rv = v.mutable_referencevalue()  # A Reference
-    rv.set_app(ref.app())
-    if ref.has_name_space():
-      rv.set_name_space(ref.name_space())
-    for elem in ref.path().element_list():
-      rv.add_pathelement().CopyFrom(elem)
+    v.key_value.CopyFrom(value.to_protobuf())
 
   def _db_get_value(self, v):
-    if v.WhichOneof('value_type') != 'reference_value':
+    if v.WhichOneof('value_type') != 'key_value':
       return None
-    ref = entity_module.Reference()
-    rv = v.reference_value
-    if rv.has_app():
-      ref.set_app(rv.app())
-    if rv.has_name_space():
-      ref.set_name_space(rv.name_space())
-    path = ref.mutable_path()
-    for elem in rv.pathelement_list():
-      path.add_element().CopyFrom(elem)
-    return Key(reference=ref)
+    path_flat = []
+    for elm in v.key_value.path:
+        path_flat.extend([elm.kind, elm.name])
+    return key_module.Key(*path_flat, project=v.key_value.partition_id.project_id)
 
 
 class BlobKeyProperty(Property):
