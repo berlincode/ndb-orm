@@ -1994,7 +1994,7 @@ class KeyProperty(Property):
       return None
     path_flat = []
     for elm in v.key_value.path:
-        path_flat.extend([elm.kind, elm.name])
+      path_flat.extend([elm.kind, elm.name if elm.name != '' else elm.id])
     return key_module.Key(*path_flat, project=v.key_value.partition_id.project_id)
 
 

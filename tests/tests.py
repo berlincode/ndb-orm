@@ -67,7 +67,8 @@ class Human2(ndb.Model):
   model = ndb.LocalStructuredProperty(Items, "mo", indexed=False)
   person_details = ndb.msgprop.MessageProperty(person_pb2.Person, "pd")
   key_prop = ndb.KeyProperty(Department)
-  key_prop2 = ndb.KeyProperty()
+  key_prop2 = ndb.KeyProperty(Department)
+  key_prop3 = ndb.KeyProperty()
 
   number_of_hobbies = ndb.ComputedProperty(name="num_hob", func=lambda self: len(self.hobbies), indexed=False)
   default_info = ndb.StringProperty("di", indexed=False, default='unknown')
@@ -104,7 +105,7 @@ def entity_to_binary_to_entity(entity, entity_id=123):
     entity_new = client.get(key)
     return entity_new
 
-  # do a serialization and undserialization (without a datatstore)
+  # do a serialization and unserialization (without a datatstore)
   pb = ndb.helpers.model_to_protobuf(entity, project=PROJECT)
 
   # serialize to binary string
@@ -148,10 +149,16 @@ class ProtocolBuffer(TestCase):
     phone.number = "555-4321"
     phone.type = person_pb2.Person.HOME
 
-    department = Department(
+    department_id_string = Department(
       id="dept_id",
       department_id=123,
-      name="department"
+      name="department with string id"
+    )
+
+    department_id_int = Department(
+      id=111,
+      department_id=124,
+      name="department with integer id"
     )
 
     if USE_DATASTORE:
@@ -159,7 +166,8 @@ class ProtocolBuffer(TestCase):
       from .gcloud_credentials import EmulatorCredentials
       client = datastore.Client(project=PROJECT, credentials=EmulatorCredentials())
 
-      client.put(department)
+      client.put(department_id_string)
+      client.put(department_id_int)
 
     human = Human2(
       name='Arthur Dent',
@@ -181,8 +189,9 @@ class ProtocolBuffer(TestCase):
       #model=Items(has_hat=True, number_of_socks=3, namespace=namespace).to_dict(),
       model=Items(has_hat=True, number_of_socks=3, namespace=namespace),
       person_details=person,
-      key_prop=department.key,
-      key_prop2=ndb.Key(DepartmentRoot, "root", Department, "dept_id2"),
+      key_prop=department_id_string.key,
+      key_prop2=department_id_int.key,
+      key_prop3=ndb.Key(DepartmentRoot, "root", Department, "dept_id2"),
       namespace=namespace
     )
 
@@ -213,7 +222,8 @@ class ProtocolBuffer(TestCase):
     self.assertEqual(human_recovered.model.number_of_socks, 3)
     self.assertEqual(human_recovered.person_details.phones[0].number, "555-4321")
     self.assertEqual(human_recovered.key_prop, ndb.Key(Department, "dept_id"))
-    self.assertEqual(human_recovered.key_prop2, ndb.Key(DepartmentRoot, "root", Department, "dept_id2"))
+    self.assertEqual(human_recovered.key_prop2, ndb.Key(Department, 111))
+    self.assertEqual(human_recovered.key_prop3, ndb.Key(DepartmentRoot, "root", Department, "dept_id2"))
 
     # these were set automatically
     self.assertEqual(human_recovered.number_of_hobbies, 2)
@@ -225,9 +235,13 @@ class ProtocolBuffer(TestCase):
       from .gcloud_credentials import EmulatorCredentials
       client = datastore.Client(project=PROJECT, credentials=EmulatorCredentials())
 
-      department_db = client.get(human_recovered.key_prop)
-      self.assertEqual(department_db.department_id, 123)
-      self.assertEqual(department_db.name, "department")
+      department_id_string_db = client.get(human_recovered.key_prop)
+      self.assertEqual(department_id_string_db.department_id, 123)
+      self.assertEqual(department_id_string_db.name, "department with string id")
+
+      department_id_int_db = client.get(human_recovered.key_prop2)
+      self.assertEqual(department_id_int_db.department_id, 124)
+      self.assertEqual(department_id_int_db.name, "department with integer id")
 
     ndb.model.ENABLE_PICKLE_LOADS = False
 

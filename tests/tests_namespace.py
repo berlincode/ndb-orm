@@ -27,7 +27,7 @@ else:
 
 ndb.enable_use_with_gcd(project=PROJECT, namespace="namespace3")
 
-class Department(ndb.Model):
+class Department2(ndb.Model):
   name = ndb.StringProperty()
 
 class Namespace(TestCase):
@@ -35,19 +35,19 @@ class Namespace(TestCase):
   def test_explicit_namespace(self):
 
     # create two departments with the same id which will be stored in different namespaces
-    department1 = Department(
+    department1 = Department2(
       id="dept_id",
       namespace="namespace1",
       name="department in 'namespace1'",
     )
 
-    department2 = Department(
+    department2 = Department2(
       id="dept_id",
       namespace="namespace2",
       name="department in 'namespace2'",
     )
 
-    department3 = Department(
+    department3 = Department2(
       # no namespace here, so the default should be taken (supplied with ndb.enable_use_with_gcd())
       id="dept_id",
       name="department in 'namespace3'",
@@ -63,9 +63,9 @@ class Namespace(TestCase):
       client.put(department2)
       client.put(department3)
 
-      key1=ndb.Key(Department, "dept_id", project=PROJECT, namespace="namespace1")
-      key2=ndb.Key(Department, "dept_id", project=PROJECT, namespace="namespace2")
-      key3=ndb.Key(Department, "dept_id", project=PROJECT, namespace="namespace3")
+      key1=ndb.Key(Department2, "dept_id", project=PROJECT, namespace="namespace1")
+      key2=ndb.Key(Department2, "dept_id", project=PROJECT, namespace="namespace2")
+      key3=ndb.Key(Department2, "dept_id", project=PROJECT, namespace="namespace3")
 
       department1_from_db = client.get(key1)
       department2_from_db = client.get(key2)
